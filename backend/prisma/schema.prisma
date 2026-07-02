@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id                        String    @id @default(uuid())
+  name                      String
+  nomba_business_account_id String?
+  reward_budget_balance     Decimal   @default(0.0)
+  batches                   Batch[]
+}
+
+model Participant {
+  id                    String    @id @default(uuid())
+  phone_number          String    @unique
+  bvn                   String?   // encrypted at rest
+  nomba_sub_account_id  String?
+  nomba_sub_account_ref String?
+  onboarded_at          DateTime?
+  password              String?   // for login
+  
+  allocations_received  Allocation[] @relation("ToParticipant")
+  allocations_sent      Allocation[] @relation("FromParticipant")
+  custody_attestations  CustodyAttestation[]
+  settlements_tagged    Settlement[]
+}
+
+enum Terms {
+  CASH
+  CREDIT
+}
+
+enum Status {
+  PENDING
+  PAYMENT_VERIFIED
+  CUSTODY_CONFIRMED
+  SETTLED
+  PARTIALLY_VERIFIED
+  FLAGGED
+}
+
+model Batch {
+  id                           String    @id @default(uuid())
+  organization_id              String
+  organization                 Organization @relation(fields: [organization_id], references: [id])
+  product_name                 String
+  quantity                     Int
+  declared_terms               Terms
+  credit_term_days             Int?
+  nomba_virtual_account_id     String?
+  nomba_virtual_account_number String?
+  status                       Status    @default(PENDING)
+  created_at                   DateTime  @default(now())
+  due_at                       DateTime?
+  
+  allocations                  Allocation[]
+  transactions                 NombaTransaction[]
+}
+
+model Allocation {
+  id                           String    @id @default(uuid())
+  batch_id                     String
+  batch                        Batch     @relation(fields: [batch_id], references: [id])
+  parent_allocation_id         String?
+  parent_allocation            Allocation? @relation("AllocationTree", fields: [parent_allocation_id], references: [id])
+  child_allocations            Allocation[] @relation("AllocationTree")
+  from_participant_id          String?
+  from_participant             Participant? @relation("FromParticipant", fields: [from_participant_id], references: [id])
+  to_participant_id            String
+  to_participant               Participant @relation("ToParticipant", fields: [to_participant_id], references: [id])
+  quantity                     Int
+  declared_terms               Terms
+  credit_term_days             Int?
+  nomba_virtual_account_id     String?
+  nomba_virtual_account_number String?
+  serial_range_or_ids          Json?
+  status                       Status    @default(PENDING)
+  claim_code                   String?
+  created_at                   DateTime  @default(now())
+  due_at                       DateTime?
+  
+  transactions                 NombaTransaction[]
+  attestations                 CustodyAttestation[]
+}
+
+model NombaTransaction {
+  id                    String    @id @default(uuid())
+  nomba_transaction_id  String    @unique
+  virtual_account_id    String
+  amount                Decimal
+  sender_account_name   String?
+  sender_account_number String?
+  narration             String?
+  matched_allocation_id String?
+  matched_allocation    Allocation? @relation(fields: [matched_allocation_id], references: [id])
+  matched_batch_id      String?
+  matched_batch         Batch?      @relation(fields: [matched_batch_id], references: [id])
+  match_status          String      // auto_matched | flagged_mismatch | unmatched
+  received_at           DateTime    @default(now())
+}
+
+model CustodyAttestation {
+  id                    String    @id @default(uuid())
+  allocation_id         String
+  allocation            Allocation @relation(fields: [allocation_id], references: [id])
+  participant_id        String
+  participant           Participant @relation(fields: [participant_id], references: [id])
+  otp_verified_at       DateTime  @default(now())
+  nomba_transaction_id  String?
+  amount                Decimal   @default(0.0)
+}
+
+model Settlement {
+  id                       String    @id @default(uuid())
+  nomba_transaction_id     String
+  allocation_ids           String[]  
+  tagged_by_participant_id String
+  tagged_by_participant    Participant @relation(fields: [tagged_by_participant_id], references: [id])
+  tagged_at                DateTime  @default(now())
+}
+
+enum ScanResult {
+  GENUINE
+  DUPLICATE_CLAIM
+  CHAIN_MISMATCH
+  UNRECOGNIZED
+}
+
+model ConsumerScan {
+  id            String    @id @default(uuid())
+  serial_code   String
+  result        ScanResult
+  scanner_phone String
+  reward_amount Decimal?
+  paid_at       DateTime?
+}
