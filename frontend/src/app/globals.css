@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+@layer base {
+  .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .icon-fill {
+      font-variation-settings: 'FILL' 1;
+  }
+  .tree-line-v { width: 2px; background-color: var(--color-outline-variant, #c5c6cd); }
+  .tree-line-h { height: 2px; background-color: var(--color-outline-variant, #c5c6cd); }
+}
