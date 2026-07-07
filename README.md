@@ -2,8 +2,6 @@
 
 **A Financial Accountability & Anti-Counterfeiting Layer built for the Nomba Hackathon.**
 
-🌍 **Live Demo:** [Insert Deployed Link Here]
-
 PayTrace solves the counterfeit crisis and broken supply chain accountability in Africa by physically linking the movement of physical goods to the movement of money. By leveraging the **Nomba API**, every handover of goods requires a verifiable financial transaction, creating an immutable chain of custody that consumers can trust.
 
 ---
@@ -37,9 +35,10 @@ We utilized the Nomba Sandbox APIs to create a closed-loop financial ecosystem:
 To understand the full power of PayTrace, please follow this step-by-step flow which takes a product from the Factory floor all the way to the end Consumer's hands.
 
 ### Act 1: The Manufacturer & Distributor
-1. Navigate to the live application: **[Insert Deployed Link Here]**
-2. Click the **"Simulate Login (Hackathon Demo)"** button. 
-3. On the **Manufacturer Dashboard**, click **"Create New Batch"**. Enter a product name (e.g., *Premium Engine Oil*) and quantity. This creates the batch and provisions a **Nomba Virtual Account**.
+1. Start the frontend and backend servers.
+2. Navigate to `http://localhost:3000`
+3. Click the **"Simulate Login (Hackathon Demo)"** button. 
+4. On the **Manufacturer Dashboard**, click **"Create New Batch"**. Enter a product name (e.g., *Premium Engine Oil*) and quantity. This creates the batch and provisions a **Nomba Virtual Account**.
 5. Switch to the **Distributor Dashboard** using the sidebar.
 6. You will see the new pending batch. Click **"Receive Goods"**.
 7. Click the **"Simulate Bank Transfer (Nomba API)"** button. This executes a real API call to the Nomba sandbox, paying the Virtual Account to legally transfer custody to the Distributor.
@@ -64,9 +63,7 @@ Refresh the Consumer Scan page (simulating a second person scanning a copied QR 
 
 ---
 
-## 💻 Local Development (Optional)
-
-*(If you prefer to run the project locally instead of using the live link)*
+## 🚀 Setup Instructions (Local Development)
 
 1. Clone the repository.
 2. Navigate to `/backend`, run `npm install`, setup your `.env` with your Nomba credentials and Postgres URL, and run `npm run dev`.

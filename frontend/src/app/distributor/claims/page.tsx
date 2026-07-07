@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 export default function IncomingClaims() {
   const [searchQuery, setSearchQuery] = useState('');
