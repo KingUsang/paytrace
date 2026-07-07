@@ -10,19 +10,42 @@ interface Allocation {
   status: 'pending' | 'verified';
 }
 
-const mockAllocations: Allocation[] = [
-  { id: 'INV-4091-XX', recipient: 'Acme Corp Logistics', amount: 12450.00, dueDate: 'Oct 12, 2026', status: 'pending' },
-  { id: 'INV-4092-XY', recipient: 'Global Freight Solutions', amount: 8210.50, dueDate: 'Oct 14, 2026', status: 'pending' },
-  { id: 'INV-4095-ZZ', recipient: 'Delta Cargo Inc.', amount: 45100.00, dueDate: 'Oct 15, 2026', status: 'pending' },
-];
+
 
 export default function SettleOutstandingPage() {
-  const [allocations, setAllocations] = useState<Allocation[]>(mockAllocations);
+  const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSettling, setIsSettling] = useState(false);
   const [paymentVA, setPaymentVA] = useState<string | null>(null);
   const [paymentBatchId, setPaymentBatchId] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'verified' | null>(null);
+
+  useEffect(() => {
+    const fetchAllocations = async () => {
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${API_URL}/api/allocations`);
+        if (res.ok) {
+          const data = await res.json();
+          // Filter for CREDIT terms that haven't been settled
+          const unSettled = data.filter((a: any) => 
+            a.declared_terms === 'CREDIT' && a.status !== 'SETTLED'
+          );
+          const mapped = unSettled.map((a: any) => ({
+            id: a.id,
+            recipient: a.batch?.product_name || 'Allocated Product',
+            amount: a.quantity * Number(a.batch?.unit_price || 50),
+            dueDate: a.due_at ? new Date(a.due_at).toLocaleDateString() : 'N/A',
+            status: a.status === 'PAYMENT_VERIFIED' ? 'verified' : 'pending'
+          }));
+          setAllocations(mapped);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchAllocations();
+  }, []);
 
   const totalBulkAmount = 65760.50;
 

@@ -1,33 +1,69 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 
-export default function ReceiveBatchCash({ params }: { params: { id: string } }) {
+export default function ReceiveBatchCash() {
   const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
   const [copied, setCopied] = useState(false);
+  const [allocation, setAllocation] = useState<any>(null);
   const [isVerifying, setIsVerifying] = useState(true);
 
-  // Simulate a Nomba webhook verification after a few seconds
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsVerifying(false);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, []);
+    const fetchAllocation = async () => {
+      try {
+        const token = localStorage.getItem('paytrace_token');
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${API_URL}/api/allocations/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setAllocation(data);
+        if (data.status === 'PAYMENT_VERIFIED' || data.status === 'CUSTODY_CONFIRMED' || data.status === 'SETTLED') {
+          setIsVerifying(false);
+        }
+      } catch (error) {
+        console.error('Failed to fetch allocation', error);
+      }
+    };
+    
+    fetchAllocation();
+    const interval = setInterval(fetchAllocation, 3000);
+    return () => clearInterval(interval);
+  }, [id]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText('8023941102');
+    if (!allocation?.nomba_virtual_account_number) return;
+    navigator.clipboard.writeText(allocation.nomba_virtual_account_number);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleIHavePaid = () => {
+  const handleIHavePaid = async () => {
     if (!isVerifying) {
       alert("Payment verified successfully by Nomba. Custody transferred!");
       router.push('/distributor/inventory');
-    } else {
-      alert("We are still waiting for Nomba to verify the payment. Please hold on.");
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('paytrace_token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${API_URL}/api/allocations/${id}/simulate-payment`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setIsVerifying(false);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Failed to simulate payment');
     }
   };
 
@@ -53,20 +89,20 @@ export default function ReceiveBatchCash({ params }: { params: { id: string } })
           <div className="p-6 flex flex-col gap-4">
             <div className="flex justify-between items-center py-2 border-b border-outline-variant border-dashed">
               <span className="font-body-sm text-body-sm text-on-surface-variant">Batch ID</span>
-              <span className="font-data-mono text-data-mono text-on-surface font-bold">{params.id || 'BTH-2023-8894'}</span>
+              <span className="font-data-mono text-data-mono text-on-surface font-bold">{allocation?.batch?.id?.split('-')[0] || id}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-outline-variant border-dashed">
               <span className="font-body-sm text-body-sm text-on-surface-variant">Contents</span>
-              <span className="font-body-md text-body-md text-on-surface font-semibold">50 Bags</span>
+              <span className="font-body-md text-body-md text-on-surface font-semibold">{allocation ? allocation.quantity : '...'} Units</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-outline-variant border-dashed">
               <span className="font-body-sm text-body-sm text-on-surface-variant">Description</span>
-              <span className="font-body-md text-body-md text-on-surface">Agrochemicals (Premium Blend)</span>
+              <span className="font-body-md text-body-md text-on-surface">{allocation?.batch?.product_name || '...'}</span>
             </div>
             <div className="flex justify-between items-center py-2">
               <span className="font-body-sm text-body-sm text-on-surface-variant">Sender declared terms</span>
               <span className="inline-flex items-center gap-1 bg-surface-container-high px-2 py-1 rounded text-primary font-label-caps text-label-caps">
-                <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 0" }}>payments</span> Cash
+                <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 0" }}>payments</span> {allocation?.declared_terms || 'CASH'}
               </span>
             </div>
           </div>
@@ -89,7 +125,9 @@ export default function ReceiveBatchCash({ params }: { params: { id: string } })
             <div className="bg-surface-container-lowest p-4 rounded border border-outline-variant flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Amount Due</span>
-                <span className="font-display-lg text-display-lg text-primary tracking-tight">₦ 1,250,000</span>
+                <span className="font-display-lg text-display-lg text-primary tracking-tight">
+                  ₦ {allocation ? (allocation.quantity * Number(allocation.batch.unit_price || 50)).toLocaleString() : '...'}
+                </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-outline-variant">
                 <div className="flex flex-col gap-1">
@@ -99,8 +137,10 @@ export default function ReceiveBatchCash({ params }: { params: { id: string } })
                 <div className="flex flex-col gap-1">
                   <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Account Number</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-data-mono text-data-mono text-on-surface text-lg font-bold">802 394 1102</span>
-                    <button onClick={handleCopy} className="text-secondary hover:bg-surface-container-high p-1 rounded transition-colors" title="Copy">
+                    <span className="font-data-mono text-data-mono text-on-surface text-lg font-bold">
+                      {allocation?.nomba_virtual_account_number || allocation?.batch?.nomba_virtual_account_number || 'Provisioning...'}
+                    </span>
+                    <button onClick={handleCopy} disabled={!(allocation?.nomba_virtual_account_number || allocation?.batch?.nomba_virtual_account_number)} className="text-secondary hover:bg-surface-container-high p-1 rounded transition-colors" title="Copy">
                       <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 0" }}>{copied ? 'check' : 'content_copy'}</span>
                     </button>
                   </div>
@@ -141,7 +181,7 @@ export default function ReceiveBatchCash({ params }: { params: { id: string } })
             className={`px-6 py-3 font-body-md text-body-md font-semibold rounded shadow-sm transition-all w-full sm:w-auto flex justify-center items-center gap-2 
               ${isVerifying ? 'bg-surface-container-high text-on-surface-variant cursor-not-allowed' : 'bg-secondary text-on-secondary hover:opacity-90'}`}
           >
-            I've Paid
+            Simulate Bank Transfer (Nomba API)
           </button>
         </div>
 

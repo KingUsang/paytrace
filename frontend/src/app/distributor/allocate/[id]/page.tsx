@@ -1,17 +1,95 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 
-export default function AllocateBatchPage({ params }: { params: { id: string } }) {
+export default function AllocateBatchPage() {
+  const params = useParams();
+  const id = params.id as string;
   const [quantity, setQuantity] = useState('');
   const [phone, setPhone] = useState('');
   const [terms, setTerms] = useState<'cash' | 'credit'>('cash');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [claimCode, setClaimCode] = useState<string | null>(null);
+  const [newAllocationId, setNewAllocationId] = useState<string | null>(null);
+  const [allocation, setAllocation] = useState<any>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const fetchAllocation = async () => {
+      try {
+        const token = localStorage.getItem('paytrace_token');
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${API_URL}/api/allocations/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setAllocation(data);
+      } catch (error) {
+        console.error('Failed to fetch allocation', error);
+      }
+    };
+    fetchAllocation();
+  }, [id]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert(`Generating claim code for ${quantity} units on ${terms} terms to ${phone}`);
-    // Future: Call API to split batch and generate code
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('paytrace_token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      
+      const res = await fetch(`${API_URL}/api/allocations`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          batch_id: id, // For demo, we might need to adjust backend to accept parent_allocation_id
+          to_phone_number: phone,
+          quantity: quantity,
+          declared_terms: terms.toUpperCase(),
+          credit_term_days: terms === 'credit' ? 30 : null
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to allocate');
+      const data = await res.json();
+      setClaimCode(data.claim_code);
+      setNewAllocationId(data.id);
+    } catch (error) {
+      console.error(error);
+      alert('Error creating allocation');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (claimCode) {
+    return (
+      <div className="flex-1 p-margin-mobile md:p-margin-desktop flex flex-col items-center justify-center relative w-full h-full min-h-[calc(100vh-64px)]">
+        <div className="bg-surface border border-outline-variant rounded-xl shadow-lg p-8 max-w-md w-full text-center">
+          <span className="material-symbols-outlined text-emerald-500 text-6xl mb-4">check_circle</span>
+          <h2 className="font-headline-sm text-primary mb-2">Allocation Successful</h2>
+          <p className="text-on-surface-variant mb-6">The sub-account has been provisioned. Share this claim code with the retailer to confirm custody.</p>
+          <div className="bg-surface-container-lowest border-2 border-dashed border-secondary rounded-lg p-6 mb-6">
+            <span className="font-data-mono text-4xl text-primary tracking-[0.2em]">{claimCode}</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            <Link href={newAllocationId ? `/retailer/verify/${newAllocationId}` : "#"} target="_blank" className="bg-secondary text-on-secondary hover:opacity-90 font-bold py-3 px-6 rounded-lg w-full block transition-opacity">
+              Open Retailer Portal (Demo)
+            </Link>
+            <Link href="/distributor/inventory" className="bg-surface-container-high text-on-surface hover:bg-outline-variant font-bold py-3 px-6 rounded-lg w-full block transition-colors">
+              Return to Inventory
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 p-margin-mobile md:p-margin-desktop flex flex-col items-center justify-center relative pb-24 md:pb-margin-desktop w-full h-full min-h-[calc(100vh-64px)]">
@@ -45,8 +123,8 @@ export default function AllocateBatchPage({ params }: { params: { id: string } }
               </div>
               <div>
                 <div className="font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase tracking-wider">Selected Batch</div>
-                <div className="font-title-md text-title-md text-primary tracking-tight">Industrial Solvents - TX44</div>
-                <div className="font-data-mono text-data-mono text-on-surface-variant mt-1 text-sm">ID: {params.id}</div>
+                <div className="font-title-md text-title-md text-primary tracking-tight">{allocation?.batch?.product_name || '...'}</div>
+                <div className="font-data-mono text-data-mono text-on-surface-variant mt-1 text-sm">ID: {id}</div>
               </div>
             </div>
 
@@ -56,7 +134,7 @@ export default function AllocateBatchPage({ params }: { params: { id: string } }
             <div className="flex flex-col gap-2">
               <label className="font-title-md text-title-md text-primary flex justify-between items-center" htmlFor="quantity">
                 Select Quantity
-                <span className="font-body-sm text-body-sm text-on-surface-variant font-normal">Available: 450 units</span>
+                <span className="font-body-sm text-body-sm text-on-surface-variant font-normal">Available: {allocation?.quantity || '...'} units</span>
               </label>
               <div className="relative">
                 <input 
@@ -64,7 +142,7 @@ export default function AllocateBatchPage({ params }: { params: { id: string } }
                   value={quantity}
                   onChange={e => setQuantity(e.target.value)}
                   className="w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 font-data-mono text-data-mono text-primary focus:border-secondary focus:ring-1 focus:ring-secondary focus:outline-none transition-all shadow-sm" 
-                  max="450" min="1" 
+                  max={allocation?.quantity || 1} min="1" 
                   placeholder="0" required 
                   type="number" 
                 />
@@ -76,7 +154,16 @@ export default function AllocateBatchPage({ params }: { params: { id: string } }
 
             {/* Recipient Phone */}
             <div className="flex flex-col gap-2">
-              <label className="font-title-md text-title-md text-primary" htmlFor="phone">Recipient's Phone Number</label>
+              <div className="flex justify-between items-center">
+                <label className="font-title-md text-title-md text-primary" htmlFor="phone">Recipient's Phone Number</label>
+                <button 
+                  type="button" 
+                  onClick={() => setPhone('+2349000000000')} 
+                  className="font-body-sm text-body-sm text-secondary hover:underline cursor-pointer bg-surface-container-low px-2 py-1 rounded"
+                >
+                  Use Demo Retailer
+                </button>
+              </div>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
@@ -143,9 +230,9 @@ export default function AllocateBatchPage({ params }: { params: { id: string } }
 
           {/* Form Actions */}
           <div className="bg-surface-container-low border-t border-outline-variant p-6 md:p-8">
-            <button type="submit" className="w-full bg-primary hover:bg-[#213145] text-on-primary font-title-md text-title-md rounded-lg py-4 flex items-center justify-center gap-2 transition-all shadow-md active:translate-y-1">
-              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>qr_code_2</span>
-              Generate Claim Code
+            <button type="submit" disabled={isSubmitting} className="w-full bg-primary hover:bg-[#213145] text-on-primary font-title-md text-title-md rounded-lg py-4 flex items-center justify-center gap-2 transition-all shadow-md active:translate-y-1 disabled:opacity-50">
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>{isSubmitting ? 'sync' : 'qr_code_2'}</span>
+              {isSubmitting ? 'Generating...' : 'Generate Claim Code'}
             </button>
           </div>
         </form>

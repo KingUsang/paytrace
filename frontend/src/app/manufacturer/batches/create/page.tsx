@@ -4,12 +4,40 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function CreateBatch() {
-  const [paymentTerm, setPaymentTerm] = useState('cash');
+  const [productName, setProductName] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [unitPrice, setUnitPrice] = useState('50');
+  const [paymentTerm, setPaymentTerm] = useState<'cash' | 'credit'>('cash');
+  const [termDays, setTermDays] = useState('30');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
-  const handleProvision = (e: React.FormEvent) => {
+  const handleProvision = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push('/manufacturer/dashboard');
+    setIsSubmitting(true);
+    
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${API_URL}/api/batches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_name: productName,
+          quantity: quantity,
+          unit_price: unitPrice,
+          declared_terms: paymentTerm.toUpperCase(),
+          credit_term_days: paymentTerm === 'credit' ? termDays : null
+        })
+      });
+      
+      if (!res.ok) throw new Error('Failed to create batch');
+      
+      router.push('/manufacturer/batches');
+    } catch (error) {
+      console.error(error);
+      alert('Error creating batch');
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -48,27 +76,34 @@ export default function CreateBatch() {
               </div>
 
               {/* Product Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block font-label-caps text-label-caps text-on-surface-variant mb-1" htmlFor="productSelect">Product Line <span className="text-error">*</span></label>
                   <div className="relative">
-                    <select required className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 font-body-md text-body-md text-primary focus:border-secondary focus:ring-1 focus:ring-secondary outline-none transition-colors appearance-none cursor-pointer" id="productSelect" defaultValue="">
-                      <option disabled value="">Select a product...</option>
-                      <option value="p1">Industrial Grade Silicon (Grade A)</option>
-                      <option value="p2">Consumer Electronics Base Assembly</option>
-                      <option value="p3">Machined Aluminum Casings</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-on-surface-variant">
-                      <span className="material-symbols-outlined">expand_more</span>
-                    </div>
+                    <input 
+                      required 
+                      value={productName} 
+                      onChange={(e) => setProductName(e.target.value)} 
+                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 font-body-md text-body-md text-primary focus:border-secondary focus:ring-1 focus:ring-secondary outline-none transition-colors" 
+                      id="productSelect" 
+                      placeholder="e.g., Industrial Grade Silicon" 
+                      type="text" 
+                    />
                   </div>
                 </div>
 
                 <div>
                   <label className="block font-label-caps text-label-caps text-on-surface-variant mb-1" htmlFor="quantity">Unit Quantity <span className="text-error">*</span></label>
                   <div className="relative">
-                    <input required className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 font-data-mono text-data-mono text-primary focus:border-secondary focus:ring-1 focus:ring-secondary outline-none transition-colors pr-12" id="quantity" placeholder="0" type="number" />
+                    <input required value={quantity} onChange={(e) => setQuantity(e.target.value)} className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 font-data-mono text-data-mono text-primary focus:border-secondary focus:ring-1 focus:ring-secondary outline-none transition-colors pr-12" id="quantity" placeholder="0" type="number" />
                     <span className="absolute right-4 top-3 text-on-surface-variant font-label-caps text-label-caps">UNITS</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-label-caps text-label-caps text-on-surface-variant mb-1" htmlFor="unitPrice">Unit Price (₦) <span className="text-error">*</span></label>
+                  <div className="relative">
+                    <input required value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 font-data-mono text-data-mono text-primary focus:border-secondary focus:ring-1 focus:ring-secondary outline-none transition-colors" id="unitPrice" placeholder="50" step="0.01" min="0" type="number" />
                   </div>
                 </div>
               </div>
@@ -113,7 +148,7 @@ export default function CreateBatch() {
                 <div className="pt-4 border-t border-outline-variant" id="termLengthContainer">
                   <label className="block font-label-caps text-label-caps text-on-surface-variant mb-1" htmlFor="termLength">Term Length (Days) <span className="text-error">*</span></label>
                   <div className="relative w-full md:w-1/2">
-                    <select className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 font-body-md text-body-md text-primary focus:border-secondary focus:ring-1 focus:ring-secondary outline-none transition-colors appearance-none cursor-pointer" id="termLength" defaultValue="30">
+                    <select value={termDays} onChange={(e) => setTermDays(e.target.value)} className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 font-body-md text-body-md text-primary focus:border-secondary focus:ring-1 focus:ring-secondary outline-none transition-colors appearance-none cursor-pointer" id="termLength">
                       <option value="15">Net 15</option>
                       <option value="30">Net 30</option>
                       <option value="60">Net 60</option>
@@ -140,13 +175,11 @@ export default function CreateBatch() {
                   <span className="font-body-sm text-body-sm text-primary-fixed-dim">Status</span>
                   <span className="font-label-caps text-label-caps bg-surface-tint text-on-primary px-2 py-1 rounded">DRAFT</span>
                 </div>
-                <div className="flex justify-between items-center border-b border-primary-container pb-2">
-                  <span className="font-body-sm text-body-sm text-primary-fixed-dim">Network node</span>
-                  <span className="font-data-mono text-data-mono text-on-primary">NODE-US-EAST</span>
-                </div>
                 <div className="flex justify-between items-center pb-2">
                   <span className="font-body-sm text-body-sm text-primary-fixed-dim">Est. Value Base</span>
-                  <span className="font-data-mono text-data-mono text-on-primary">TBD</span>
+                  <span className="font-data-mono text-data-mono text-on-primary">
+                    {quantity && unitPrice ? `₦${(Number(quantity) * Number(unitPrice)).toLocaleString()}` : 'TBD'}
+                  </span>
                 </div>
               </div>
 
@@ -157,9 +190,9 @@ export default function CreateBatch() {
                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-secondary hover:bg-secondary-container text-on-secondary font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-[0.98]">
-                <span className="material-symbols-outlined text-lg">qr_code_2</span>
-                Provision & Generate QR
+              <button type="submit" disabled={isSubmitting} className="w-full bg-secondary hover:bg-secondary-container text-on-secondary font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-[0.98] disabled:opacity-50">
+                <span className="material-symbols-outlined text-lg">{isSubmitting ? 'sync' : 'qr_code_2'}</span>
+                {isSubmitting ? 'Provisioning...' : 'Provision & Generate QR'}
               </button>
               
               <button type="button" className="w-full mt-3 border border-outline text-on-primary hover:bg-surface-tint/30 font-bold py-3 px-4 rounded-lg transition-colors">

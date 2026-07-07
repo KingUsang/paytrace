@@ -52,6 +52,7 @@ model Batch {
   quantity                     Int
   declared_terms               Terms
   credit_term_days             Int?
+  unit_price                   Decimal   @default(50.0)
   nomba_virtual_account_id     String?
   nomba_virtual_account_number String?
   status                       Status    @default(PENDING)
@@ -129,6 +130,21 @@ enum ScanResult {
   DUPLICATE_CLAIM
   CHAIN_MISMATCH
   UNRECOGNIZED
+}
+
+enum ItemScanResult {
+  GENUINE
+  FLAGGED
+}
+
+model ItemScan {
+  id            String         @id @default(uuid())
+  batch_id      String?
+  item_code     String
+  location      String
+  result        ItemScanResult
+  flag_reason   String?
+  scanned_at    DateTime       @default(now())
 }
 
 model ConsumerScan {

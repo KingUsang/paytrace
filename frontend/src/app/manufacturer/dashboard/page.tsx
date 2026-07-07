@@ -1,7 +1,36 @@
-import React from 'react';
+'use client';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function ManufacturerDashboard() {
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const token = localStorage.getItem('paytrace_token');
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${API_URL}/api/stats`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setStats(data);
+      } catch (error) {
+        console.error('Failed to fetch stats', error);
+      }
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatCurrency = (val: number) => {
+    if (val >= 1000000) return `₦ ${(val / 1000000).toFixed(1)}M`;
+    return `₦ ${val.toLocaleString()}`;
+  };
   return (
     <div className="flex-1 p-margin-mobile md:p-margin-desktop max-w-container-max-width mx-auto w-full flex flex-col gap-6 md:gap-8">
       {/* Page Header */}
@@ -25,8 +54,8 @@ export default function ManufacturerDashboard() {
             <span className="material-symbols-outlined text-sm">layers</span>
             <span className="font-label-caps text-label-caps">Total Batches</span>
           </div>
-          <div className="font-headline-lg text-headline-lg text-primary font-data-mono">1,492</div>
-          <div className="text-xs text-on-surface-variant mt-2">+12% this week</div>
+          <div className="font-headline-lg text-headline-lg text-primary font-data-mono">{stats ? stats.totalBatches.toLocaleString() : '...'}</div>
+          <div className="text-xs text-on-surface-variant mt-2">All time</div>
         </div>
 
         <div className="bg-[rgba(16,185,129,0.05)] border border-outline-variant border-l-[3px] border-l-success rounded-xl p-4 flex flex-col justify-between shadow-sm col-span-1">
@@ -34,7 +63,7 @@ export default function ManufacturerDashboard() {
             <span className="material-symbols-outlined text-sm icon-fill">check_circle</span>
             <span className="font-label-caps text-label-caps">Payment Verified</span>
           </div>
-          <div className="font-headline-lg text-headline-lg text-primary font-data-mono">845</div>
+          <div className="font-headline-lg text-headline-lg text-primary font-data-mono">{stats ? stats.paymentVerified.toLocaleString() : '...'}</div>
           <div className="text-xs text-success mt-2">All holds released</div>
         </div>
 
@@ -43,7 +72,7 @@ export default function ManufacturerDashboard() {
             <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'wght' 600" }}>verified_user</span>
             <span className="font-label-caps text-label-caps">Custody Confirmed</span>
           </div>
-          <div className="font-headline-lg text-headline-lg text-primary font-data-mono">1,204</div>
+          <div className="font-headline-lg text-headline-lg text-primary font-data-mono">{stats ? stats.custodyConfirmed.toLocaleString() : '...'}</div>
           <div className="text-xs text-[#2563eb] mt-2">Pending payment validation</div>
         </div>
 
@@ -52,7 +81,7 @@ export default function ManufacturerDashboard() {
             <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
             <span className="font-label-caps text-label-caps">Total Receivables</span>
           </div>
-          <div className="font-headline-lg text-headline-lg text-primary font-data-mono">₦ 45.2M</div>
+          <div className="font-headline-lg text-headline-lg text-primary font-data-mono">{stats ? formatCurrency(stats.totalReceivables) : '...'}</div>
           <div className="text-xs text-on-surface-variant mt-2">Cleared funds</div>
         </div>
 
@@ -61,7 +90,7 @@ export default function ManufacturerDashboard() {
             <span className="material-symbols-outlined text-sm icon-fill">warning</span>
             <span className="font-label-caps text-label-caps">Overdue Alerts</span>
           </div>
-          <div className="font-headline-lg text-headline-lg text-error font-data-mono">23</div>
+          <div className="font-headline-lg text-headline-lg text-error font-data-mono">{stats ? stats.overdueAlerts.toLocaleString() : '...'}</div>
           <div className="text-xs text-error mt-2">Requires immediate action</div>
         </div>
       </div>
@@ -85,36 +114,28 @@ export default function ManufacturerDashboard() {
                 </tr>
               </thead>
               <tbody className="font-body-sm text-body-sm text-primary">
-                <tr className="border-b border-outline-variant hover:bg-surface transition-colors cursor-pointer group">
-                  <td className="px-6 py-4 font-data-mono text-data-mono">PT-992-A4X</td>
-                  <td className="px-6 py-4">Lagos Port Terminal</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1 bg-success-dim text-success px-2 py-1 rounded-full text-xs font-semibold border border-success/20">
-                      <span className="material-symbols-outlined text-[14px]">check</span> Genuine
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-on-surface-variant font-data-mono">10:42 AM</td>
-                </tr>
-                <tr className="border-b border-outline-variant hover:bg-surface transition-colors cursor-pointer">
-                  <td className="px-6 py-4 font-data-mono text-data-mono">PT-992-B7Y</td>
-                  <td className="px-6 py-4">Abuja Dist. Center</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1 bg-error-container/50 text-error px-2 py-1 rounded-full text-xs font-semibold border border-error/20">
-                      <span className="material-symbols-outlined text-[14px]">flag</span> Flagged
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-on-surface-variant font-data-mono">09:15 AM</td>
-                </tr>
-                <tr className="border-b border-outline-variant hover:bg-surface transition-colors cursor-pointer">
-                  <td className="px-6 py-4 font-data-mono text-data-mono">PT-993-C1Z</td>
-                  <td className="px-6 py-4">Kano Warehouse</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1 bg-success-dim text-success px-2 py-1 rounded-full text-xs font-semibold border border-success/20">
-                      <span className="material-symbols-outlined text-[14px]">check</span> Genuine
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-on-surface-variant font-data-mono">Yesterday</td>
-                </tr>
+                {stats?.recentScans?.length > 0 ? stats.recentScans.map((scan: any, idx: number) => (
+                  <tr key={idx} className="border-b border-outline-variant hover:bg-surface transition-colors cursor-pointer group">
+                    <td className="px-6 py-4 font-data-mono text-data-mono">{scan.item_code}</td>
+                    <td className="px-6 py-4">{scan.location}</td>
+                    <td className="px-6 py-4">
+                      {scan.result === 'GENUINE' ? (
+                        <span className="inline-flex items-center gap-1 bg-success-dim text-success px-2 py-1 rounded-full text-xs font-semibold border border-success/20">
+                          <span className="material-symbols-outlined text-[14px]">check</span> Genuine
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-error-container/50 text-error px-2 py-1 rounded-full text-xs font-semibold border border-error/20">
+                          <span className="material-symbols-outlined text-[14px]">flag</span> Flagged
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-on-surface-variant font-data-mono">
+                      {new Date(scan.scanned_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr><td colSpan={4} className="px-6 py-4 text-center text-on-surface-variant">No recent scans</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -128,27 +149,22 @@ export default function ManufacturerDashboard() {
                 <span className="material-symbols-outlined text-error">security_update_warning</span>
                 Security Alerts
               </h3>
-              <span className="bg-error text-on-error rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">2</span>
+              <span className="bg-error text-on-error rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">{stats?.securityAlerts?.length || 0}</span>
             </div>
             
             <div className="flex flex-col gap-4">
-              <div className="p-4 rounded-lg border border-error/30 bg-error-container/10">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="font-semibold text-error text-sm">Declared-Cash-No-Payment</div>
-                  <div className="font-data-mono text-xs text-on-surface-variant">PT-992-B7Y</div>
+              {stats?.securityAlerts?.length > 0 ? stats.securityAlerts.map((alert: any, idx: number) => (
+                <div key={idx} className="p-4 rounded-lg border border-error/30 bg-error-container/10">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="font-semibold text-error text-sm">{alert.flag_reason || 'Anomaly Detected'}</div>
+                    <div className="font-data-mono text-xs text-on-surface-variant">{alert.item_code}</div>
+                  </div>
+                  <p className="text-xs text-on-surface-variant mb-3">Scanned at: {alert.location}</p>
+                  <button className="w-full bg-surface-container-lowest border border-outline text-primary py-1.5 rounded text-xs font-semibold hover:bg-surface-container transition-colors">Investigate Alert</button>
                 </div>
-                <p className="text-xs text-on-surface-variant mb-3">Manifest declares cash received, but banking API shows no matching deposit.</p>
-                <button className="w-full bg-surface-container-lowest border border-outline text-primary py-1.5 rounded text-xs font-semibold hover:bg-surface-container transition-colors">Investigate Mismatch</button>
-              </div>
-
-              <div className="p-4 rounded-lg border border-outline-variant bg-surface-bright">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="font-semibold text-tertiary-container text-sm">Duplicate Claim Attempt</div>
-                  <div className="font-data-mono text-xs text-on-surface-variant">PT-988-X2A</div>
-                </div>
-                <p className="text-xs text-on-surface-variant mb-3">System detected a secondary attempt to verify custody on an already cleared item.</p>
-                <button className="w-full bg-surface-container-lowest border border-outline text-primary py-1.5 rounded text-xs font-semibold hover:bg-surface-container transition-colors">Review Logs</button>
-              </div>
+              )) : (
+                <div className="text-on-surface-variant text-sm text-center py-4">No active alerts.</div>
+              )}
             </div>
           </div>
         </div>

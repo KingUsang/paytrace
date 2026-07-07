@@ -1,10 +1,25 @@
 'use client';
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 export default function DistributorLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem('paytrace_token');
+    const role = localStorage.getItem('paytrace_role');
+    if (!token || role !== 'distributor') {
+      router.push('/login');
+    }
+  }, [router]);
+
+  const handleSignOut = () => {
+    localStorage.removeItem('paytrace_token');
+    localStorage.removeItem('paytrace_role');
+    router.push('/login');
+  };
 
   return (
     <div className="bg-background text-on-background font-body-md min-h-screen flex flex-col md:flex-row w-full">
@@ -37,11 +52,13 @@ export default function DistributorLayout({ children }: { children: React.ReactN
           <span className="font-body-md">History</span>
         </Link>
 
-        <div className="mt-auto border-t border-outline-variant pt-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-bold text-sm">AL</div>
+        <div onClick={handleSignOut} className="mt-auto border-t border-outline-variant pt-4 flex items-center gap-3 cursor-pointer hover:bg-surface-container-high p-2 rounded-lg transition-colors">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-surface border border-outline text-error">
+            <span className="material-symbols-outlined text-[20px]">logout</span>
+          </div>
           <div>
-            <div className="font-title-md text-title-md text-sm">Alpha Logistics</div>
-            <div className="font-body-sm text-body-sm text-on-surface-variant">Distributor</div>
+            <div className="font-title-md text-title-md text-sm text-error">Sign Out</div>
+            <div className="font-body-sm text-body-sm text-on-surface-variant">Clear Session</div>
           </div>
         </div>
       </nav>

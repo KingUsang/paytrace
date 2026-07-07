@@ -28,7 +28,7 @@ export default function AlertsPage() {
               <div className="flex justify-between items-center border-b border-outline-variant pb-3 hover:bg-surface-container-low transition-colors px-2 rounded">
                 <div>
                   <p className="font-data-mono text-data-mono text-primary">BATCH-992-A</p>
-                  <p className="font-body-sm text-body-sm text-on-surface-variant">Declared: $4,500 | Received: $0</p>
+                  <p className="font-body-sm text-body-sm text-on-surface-variant">Declared: ₦4,500 | Received: ₦0</p>
                 </div>
                 <button className="bg-secondary text-on-secondary px-4 py-2 rounded font-body-sm text-body-sm hover:opacity-90">Investigate</button>
               </div>

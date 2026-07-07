@@ -1,11 +1,28 @@
 'use client';
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 export default function ManufacturerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLogin = pathname.includes('/login');
+
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLogin) return;
+    const token = localStorage.getItem('paytrace_token');
+    const role = localStorage.getItem('paytrace_role');
+    if (!token || role !== 'manufacturer') {
+      router.push('/login');
+    }
+  }, [isLogin, router]);
+
+  const handleSignOut = () => {
+    localStorage.removeItem('paytrace_token');
+    localStorage.removeItem('paytrace_role');
+    router.push('/login');
+  };
 
   if (isLogin) {
     return <main className="min-h-screen bg-background">{children}</main>;
@@ -27,10 +44,7 @@ export default function ManufacturerLayout({ children }: { children: React.React
           <span className={`material-symbols-outlined mb-1 ${pathname.includes('receivables') ? 'icon-fill' : ''}`} style={{ fontVariationSettings: pathname.includes('receivables') ? "'FILL' 1" : "'FILL' 0" }}>payments</span>
           <span>Receivables</span>
         </Link>
-        <Link className={`flex flex-col items-center justify-center p-2 rounded-lg transition-transform scale-95 active:scale-90 ${pathname.includes('settings') ? 'bg-secondary-container text-on-secondary-container rounded-full px-6 py-1' : 'text-on-surface-variant dark:text-on-primary-container hover:bg-surface-container-highest'}`} href="/manufacturer/settings">
-          <span className={`material-symbols-outlined mb-1 ${pathname.includes('settings') ? 'icon-fill' : ''}`} style={{ fontVariationSettings: pathname.includes('settings') ? "'FILL' 1" : "'FILL' 0" }}>settings</span>
-          <span>Settings</span>
-        </Link>
+
       </nav>
 
       {/* SideNavBar (Desktop) */}
@@ -55,16 +69,15 @@ export default function ManufacturerLayout({ children }: { children: React.React
           <span>Receivables</span>
         </Link>
 
-        <Link className={`flex items-center gap-3 p-3 rounded-lg transition-colors font-bold ${pathname.includes('settings') ? 'bg-secondary text-on-secondary' : 'text-on-surface-variant dark:text-on-primary-container hover:bg-surface-container-high dark:hover:bg-inverse-surface'}`} href="/manufacturer/settings">
-          <span className={`material-symbols-outlined ${pathname.includes('settings') ? 'icon-fill' : ''}`} style={{ fontVariationSettings: pathname.includes('settings') ? "'FILL' 1" : "'FILL' 0" }}>settings</span>
-          <span>Settings</span>
-        </Link>
 
-        <div className="mt-auto pt-4 border-t border-outline-variant/30 flex items-center gap-3 cursor-pointer hover:bg-surface-container-high p-2 rounded-lg transition-colors">
-          <div className="w-10 h-10 rounded-full bg-cover bg-center border border-outline" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDQLnfu_AxUsqaXPG8NnGriWx_jzpRYgLjs8atSLXX3ltMZI0JpTaaxJ4_p6-d87_QXv_32m7gv0Fp_Qyg9mqjG5wYS6b2-knH1hp0BcnZe5ETAGztvlwAIEJl7yVkOSxyV5kRFC7tTJ6rMFH9QLsf1xBols_HjfzW5OT5XOJQfIb6FeZ6LVhBVPnFQGu-M59gNR2M5kY-7jcn9_5uG0gPh3nu9HO81CGa5vGhrJI4Nqdl3jPcgFazC8uBtzSLto6JQWhwCr6oM4C0')" }}></div>
+
+        <div onClick={handleSignOut} className="mt-auto pt-4 border-t border-outline-variant/30 flex items-center gap-3 cursor-pointer hover:bg-surface-container-high p-2 rounded-lg transition-colors">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-surface border border-outline text-error">
+            <span className="material-symbols-outlined text-[20px]">logout</span>
+          </div>
           <div>
-            <div className="font-bold text-sm text-primary">Manufacturer Profile</div>
-            <div className="text-xs text-on-surface-variant">Admin Access</div>
+            <div className="font-bold text-sm text-error">Sign Out</div>
+            <div className="text-xs text-on-surface-variant">Clear Session</div>
           </div>
         </div>
       </nav>

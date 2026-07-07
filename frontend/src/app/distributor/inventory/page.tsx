@@ -1,23 +1,54 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 
-const MOCK_INVENTORY = [
-  { id: 'TXN-88392-V', batch: 'Batch #774-Alpha', status: 'Payment Verified', statusColor: 'emerald', qty: 450, icon: 'check_circle' },
-  { id: 'TXN-88393-C', batch: 'Batch #775-Beta', status: 'Custody Confirmed', statusColor: 'blue', qty: 320, icon: 'verified_user' },
-  { id: 'TXN-88394-C', batch: 'Batch #776-Gamma', status: 'Custody Confirmed', statusColor: 'blue', qty: 122, icon: 'verified_user' },
-];
-
 export default function FieldInventory() {
+  const [inventory, setInventory] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        const token = localStorage.getItem('paytrace_token');
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${API_URL}/api/allocations`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        const formatted = data.map((item: any) => ({
+          id: item.id.split('-')[0],
+          rawId: item.id,
+          batch: item.batch.product_name,
+          status: item.status === 'PAYMENT_VERIFIED' ? 'Payment Verified' : item.status === 'CUSTODY_CONFIRMED' ? 'Custody Confirmed' : 'Pending',
+          statusColor: item.status === 'PAYMENT_VERIFIED' ? 'emerald' : item.status === 'CUSTODY_CONFIRMED' ? 'blue' : 'amber',
+          qty: item.quantity,
+          icon: item.status === 'PAYMENT_VERIFIED' ? 'check_circle' : 'verified_user'
+        }));
+        setInventory(formatted);
+      } catch (error) {
+        console.error('Error fetching inventory', error);
+      }
+    };
+    fetchInventory();
+    const interval = setInterval(fetchInventory, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   const filteredInventory = useMemo(() => {
-    if (!searchQuery) return MOCK_INVENTORY;
-    return MOCK_INVENTORY.filter(item => 
+    if (!searchQuery) return inventory;
+    return inventory.filter(item => 
       item.batch.toLowerCase().includes(searchQuery.toLowerCase()) || 
       item.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [searchQuery, inventory]);
+
+  const totalReceived = useMemo(() => {
+    return inventory.reduce((acc, item) => acc + item.qty, 0);
+  }, [inventory]);
 
   return (
     <div className="pt-6 pb-24 md:pb-8 px-margin-mobile md:px-margin-desktop max-w-container-max-width mx-auto w-full">
@@ -26,7 +57,7 @@ export default function FieldInventory() {
           <h1 className="font-headline-lg text-headline-lg text-primary tracking-tight">Field Inventory</h1>
           <p className="text-on-surface-variant font-body-md mt-1">Real-time custody tracking and forward allocation.</p>
         </div>
-        <Link href="/distributor/allocate/TXN-88392-V" className="bg-primary text-on-primary px-6 py-3 rounded-lg font-body-md font-semibold hover:opacity-90 transition-opacity flex items-center justify-center w-full md:w-auto gap-2 shadow-[0_4px_12px_rgba(33,49,69,0.05)]">
+        <Link href={inventory.length > 0 ? `/distributor/allocate/${inventory[0].rawId}` : '#'} className={`bg-primary text-on-primary px-6 py-3 rounded-lg font-body-md font-semibold transition-opacity flex items-center justify-center w-full md:w-auto gap-2 shadow-[0_4px_12px_rgba(33,49,69,0.05)] ${inventory.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'}`}>
           <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>local_shipping</span>
           Allocate to Next Party
         </Link>
@@ -36,7 +67,7 @@ export default function FieldInventory() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter mb-8">
         <div className="bg-surface border border-outline-variant rounded-lg p-gutter shadow-[0_1px_3px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_12px_rgba(33,49,69,0.05)] transition-shadow">
           <div className="text-on-surface-variant font-label-caps text-label-caps uppercase tracking-wider mb-2">Total Received</div>
-          <div className="font-display-lg text-display-lg text-primary tracking-tight">1,248</div>
+          <div className="font-display-lg text-display-lg text-primary tracking-tight">{totalReceived.toLocaleString()}</div>
           <div className="text-body-sm text-[#10B981] mt-2 flex items-center gap-1 font-medium">
             <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 0" }}>arrow_upward</span>
             12% from last batch
@@ -44,7 +75,7 @@ export default function FieldInventory() {
         </div>
         <div className="bg-surface border border-outline-variant rounded-lg p-gutter shadow-[0_1px_3px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_12px_rgba(33,49,69,0.05)] transition-shadow">
           <div className="text-on-surface-variant font-label-caps text-label-caps uppercase tracking-wider mb-2">Available to Forward</div>
-          <div className="font-display-lg text-display-lg text-primary tracking-tight">892</div>
+          <div className="font-display-lg text-display-lg text-primary tracking-tight">{totalReceived.toLocaleString()}</div>
           <div className="text-body-sm text-on-surface-variant mt-2 flex items-center gap-1 font-medium">
             <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 0" }}>inventory</span>
             Pending allocation
@@ -83,14 +114,14 @@ export default function FieldInventory() {
             <div 
               key={item.id}
               className={`p-6 border-b border-outline-variant flex flex-col md:flex-row justify-between md:items-center gap-4 hover:brightness-95 transition-all
-                ${item.statusColor === 'emerald' ? 'bg-[#10B981]/5 border-l-4 border-l-[#10B981]' : 'bg-[#0051d5]/5 border-l-4 border-l-[#0051d5]'}`
+                ${item.statusColor === 'emerald' ? 'bg-[#10B981]/5 border-l-4 border-l-[#10B981]' : item.statusColor === 'blue' ? 'bg-[#0051d5]/5 border-l-4 border-l-[#0051d5]' : 'bg-amber-500/5 border-l-4 border-l-amber-500'}`
               }
             >
               <div className="flex items-start gap-4">
                 <div className="mt-1">
                   <span 
-                    className={`material-symbols-outlined ${item.statusColor === 'emerald' ? 'text-[#10B981]' : 'text-[#0051d5]'}`} 
-                    style={{ fontVariationSettings: item.statusColor === 'emerald' ? "'FILL' 1" : "'FILL' 0" }}
+                    className={`material-symbols-outlined ${item.statusColor === 'emerald' ? 'text-[#10B981]' : item.statusColor === 'blue' ? 'text-[#0051d5]' : 'text-amber-500'}`} 
+                    style={{ fontVariationSettings: item.statusColor === 'amber' ? "'FILL' 0" : "'FILL' 1" }}
                   >
                     {item.icon}
                   </span>
@@ -104,7 +135,7 @@ export default function FieldInventory() {
               <div className="flex items-center justify-between md:justify-end gap-8 w-full md:w-auto mt-2 md:mt-0">
                 <div className="text-left md:text-right">
                   <div className="font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase">Status</div>
-                  <div className={`font-body-sm font-semibold ${item.statusColor === 'emerald' ? 'text-[#10B981]' : 'text-[#0051d5]'}`}>
+                  <div className={`font-body-sm font-semibold ${item.statusColor === 'emerald' ? 'text-[#10B981]' : item.statusColor === 'blue' ? 'text-[#0051d5]' : 'text-amber-500'}`}>
                     {item.status}
                   </div>
                 </div>
@@ -112,9 +143,16 @@ export default function FieldInventory() {
                   <div className="font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase">Quantity</div>
                   <div className="font-data-mono text-data-mono font-bold text-primary">{item.qty} Units</div>
                 </div>
-                <button className="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors">
-                  <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>more_vert</span>
-                </button>
+                
+                {item.status === 'Pending' ? (
+                  <Link href={`/distributor/receive/${item.rawId}`} className="bg-secondary text-on-secondary px-6 py-2 rounded font-body-sm font-bold shadow-sm hover:opacity-90 transition-opacity">
+                    Receive Batch
+                  </Link>
+                ) : (
+                  <Link href={`/distributor/allocate/${item.rawId}`} className="border border-outline text-on-surface hover:bg-surface-container-high px-6 py-2 rounded font-body-sm font-bold shadow-sm transition-colors">
+                    Forward Batch
+                  </Link>
+                )}
               </div>
             </div>
           )) : (

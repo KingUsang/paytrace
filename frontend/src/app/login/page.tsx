@@ -1,188 +1,105 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
-export default function OTPLoginPage() {
-  const [otpValue, setOtpValue] = useState('');
-  const [timeRemaining, setTimeRemaining] = useState(120);
-  const [status, setStatus] = useState<'idle' | 'verifying' | 'verified' | 'error' | 'expired'>('idle');
+export default function DemoLogin() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState<string | null>(null);
 
-  const MAX_LENGTH = 6;
-
-  useEffect(() => {
-    if (timeRemaining <= 0) {
-      setStatus('expired');
-      return;
-    }
-    const timer = setInterval(() => setTimeRemaining(prev => prev - 1), 1000);
-    return () => clearInterval(timer);
-  }, [timeRemaining]);
-
-  const handleKeyPress = useCallback((val: string) => {
-    if (status === 'expired' || status === 'verifying') return;
-    if (otpValue.length < MAX_LENGTH) {
-      setOtpValue(prev => prev + val);
-      setStatus('idle');
-    }
-  }, [otpValue, status]);
-
-  const handleBackspace = useCallback(() => {
-    if (status === 'expired' || status === 'verifying') return;
-    setOtpValue(prev => prev.slice(0, -1));
-    setStatus('idle');
-  }, [status]);
-
-  const handleClear = useCallback(() => {
-    if (status === 'expired' || status === 'verifying') return;
-    setOtpValue('');
-    setStatus('idle');
-  }, [status]);
-
-  const handleSubmit = useCallback(() => {
-    if (otpValue.length === MAX_LENGTH && status !== 'expired') {
-      setStatus('verifying');
+  const handleLogin = async (role: 'manufacturer' | 'distributor') => {
+    setIsLoading(role);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${API_URL}/api/auth/demo-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      });
       
-      // Simulate verification
-      setTimeout(() => {
-        if (otpValue === '123456') { // Mock success code
-          setStatus('verified');
-          setTimeout(() => router.push('/distributor/inventory'), 500);
-        } else {
-          setStatus('error');
-          setOtpValue('');
-        }
-      }, 1500);
-    }
-  }, [otpValue, status, router]);
-
-  // Keyboard support
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key >= '0' && e.key <= '9') {
-        handleKeyPress(e.key);
-      } else if (e.key === 'Backspace') {
-        handleBackspace();
-      } else if (e.key === 'Enter') {
-        handleSubmit();
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error('Login Failed Response:', res.status, errText);
+        throw new Error(`Failed to login: ${res.status} ${errText}`);
       }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyPress, handleBackspace, handleSubmit]);
-
-  const minutes = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
-  const seconds = (timeRemaining % 60).toString().padStart(2, '0');
-  const percentage = Math.max(0, (timeRemaining / 120) * 100);
+      const data = await res.json();
+      localStorage.setItem('paytrace_token', data.token);
+      localStorage.setItem('paytrace_role', data.user.role);
+      
+      if (role === 'manufacturer') {
+        router.push('/manufacturer/dashboard');
+      } else {
+        router.push('/distributor/inventory');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Failed to login');
+      setIsLoading(null);
+    }
+  };
 
   return (
-    <div className="bg-background text-on-background min-h-screen flex flex-col justify-center items-center p-margin-mobile md:p-margin-desktop overflow-hidden w-full">
-      <main className="w-full max-w-md bg-surface border border-outline-variant rounded-xl shadow-[0_12px_24px_rgba(33,49,69,0.1)] flex flex-col items-center p-gutter relative overflow-hidden">
-        
-        {/* Progress Bar Background (Expiry) */}
-        <div className="absolute top-0 left-0 h-1 w-full bg-surface-container-high">
-          <div 
-            className={`h-full transition-all duration-1000 ease-linear w-full ${percentage < 25 ? 'bg-error' : 'bg-secondary'}`} 
-            style={{ width: `${percentage}%` }}
-          />
+    <div className="min-h-screen w-full flex-1 bg-surface-container-lowest flex items-center justify-center p-4 relative">
+      
+      {/* Background Decor */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/20 blur-[100px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-secondary/10 blur-[100px]"></div>
+      </div>
+
+      <div className="max-w-md w-full z-10">
+        <div className="text-center mb-10">
+          <Link href="/" className="inline-flex items-center gap-2 mb-6 hover:opacity-80 transition-opacity">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-bold font-title-md">
+              PT
+            </div>
+            <span className="font-headline-sm text-primary tracking-tight">PayTrace</span>
+          </Link>
+          <h1 className="font-headline-md text-primary tracking-tight mb-2">Hackathon Demo Access</h1>
+          <p className="font-body-md text-on-surface-variant">Select a role to experience the platform.</p>
         </div>
 
-        {/* Header */}
-        <div className="w-full text-center mt-base mb-gutter pt-4">
-          <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-primary mb-2">PayTrace Login</h1>
-          <p className="font-body-md text-body-md text-on-surface-variant">Enter the 6-digit code sent to your device.</p>
-          <p className="text-xs text-outline mt-1">(Use 123456 to test)</p>
-        </div>
-
-        {/* OTP Input Display */}
-        <div className="flex gap-2 mb-gutter w-full justify-center">
-          {Array.from({ length: MAX_LENGTH }).map((_, index) => {
-            const char = otpValue[index] || '';
-            const isActive = index === otpValue.length;
-            const isError = status === 'error';
-            
-            let borderClass = 'border-outline-variant';
-            if (isError) borderClass = 'border-error';
-            else if (isActive) borderClass = 'border-secondary shadow-md';
-
-            return (
-              <div 
-                key={index} 
-                className={`w-12 h-14 border-2 rounded flex items-center justify-center font-display-lg text-display-lg text-primary bg-surface-container-lowest transition-colors ${borderClass}`}
-              >
-                {char}
+        <div className="flex flex-col gap-4">
+          <button 
+            onClick={() => handleLogin('manufacturer')}
+            disabled={isLoading !== null}
+            className={`bg-surface border border-outline-variant rounded-xl p-6 text-left hover:shadow-[0_8px_24px_rgba(33,49,69,0.08)] hover:-translate-y-1 transition-all duration-300 group relative overflow-hidden ${isLoading ? 'opacity-50' : ''}`}
+          >
+            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-colors"></div>
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>factory</span>
               </div>
-            );
-          })}
-        </div>
-
-        <div className="font-data-mono text-data-mono text-error mb-gutter h-5 w-full text-center">
-          {status === 'error' && "Invalid code. Please try again."}
-          {status === 'expired' && "Code expired. Please request a new one."}
-        </div>
-
-        {/* Keypad */}
-        <div className="grid grid-cols-3 gap-3 w-full mb-gutter">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-            <button 
-              key={num}
-              onClick={() => handleKeyPress(num.toString())}
-              disabled={status === 'expired' || status === 'verifying'}
-              className="h-16 bg-surface-container border border-outline-variant rounded-lg font-headline-lg text-headline-lg text-primary active:bg-secondary active:text-on-secondary active:scale-95 transition-all shadow-sm disabled:opacity-50"
-            >
-              {num}
-            </button>
-          ))}
-          <button 
-            onClick={handleClear}
-            disabled={status === 'expired' || status === 'verifying'}
-            className="h-16 flex items-center justify-center text-on-surface-variant active:opacity-50 transition-opacity disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined font-title-md text-title-md" style={{ fontVariationSettings: "'FILL' 0" }}>cancel</span>
+              <div className="flex-1">
+                <h2 className="font-title-lg text-primary mb-1">Manufacturer</h2>
+                <p className="font-body-sm text-on-surface-variant">Global dashboard, batch creation, and aggregate settlements.</p>
+              </div>
+              {isLoading === 'manufacturer' && <span className="material-symbols-outlined animate-spin text-primary">sync</span>}
+              {isLoading !== 'manufacturer' && <span className="material-symbols-outlined text-outline group-hover:text-primary transition-colors">arrow_forward</span>}
+            </div>
           </button>
+
           <button 
-            onClick={() => handleKeyPress('0')}
-            disabled={status === 'expired' || status === 'verifying'}
-            className="h-16 bg-surface-container border border-outline-variant rounded-lg font-headline-lg text-headline-lg text-primary active:bg-secondary active:text-on-secondary active:scale-95 transition-all shadow-sm disabled:opacity-50"
+            onClick={() => handleLogin('distributor')}
+            disabled={isLoading !== null}
+            className={`bg-surface border border-outline-variant rounded-xl p-6 text-left hover:shadow-[0_8px_24px_rgba(33,49,69,0.08)] hover:-translate-y-1 transition-all duration-300 group relative overflow-hidden ${isLoading ? 'opacity-50' : ''}`}
           >
-            0
-          </button>
-          <button 
-            onClick={handleBackspace}
-            disabled={status === 'expired' || status === 'verifying'}
-            className="h-16 flex items-center justify-center text-on-surface-variant active:opacity-50 transition-opacity disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined font-title-md text-title-md" style={{ fontVariationSettings: "'FILL' 0" }}>backspace</span>
+            <div className="absolute top-0 right-0 w-24 h-24 bg-secondary/5 rounded-full blur-2xl group-hover:bg-secondary/10 transition-colors"></div>
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="w-12 h-12 bg-secondary/10 text-secondary rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>local_shipping</span>
+              </div>
+              <div className="flex-1">
+                <h2 className="font-title-lg text-primary mb-1">Distributor</h2>
+                <p className="font-body-sm text-on-surface-variant">Inventory tracking, receiving goods, and forwarding allocations.</p>
+              </div>
+              {isLoading === 'distributor' && <span className="material-symbols-outlined animate-spin text-secondary">sync</span>}
+              {isLoading !== 'distributor' && <span className="material-symbols-outlined text-outline group-hover:text-secondary transition-colors">arrow_forward</span>}
+            </div>
           </button>
         </div>
 
-        {/* Action */}
-        <button 
-          onClick={handleSubmit}
-          disabled={otpValue.length !== MAX_LENGTH || status === 'expired' || status === 'verifying'}
-          className={`w-full h-14 font-title-md text-title-md rounded-lg transition-all flex items-center justify-center gap-2
-            ${otpValue.length === MAX_LENGTH && status !== 'expired' && status !== 'verifying' 
-              ? 'bg-primary text-on-primary hover:bg-inverse-surface cursor-pointer' 
-              : status === 'verified' 
-                ? 'bg-secondary text-on-secondary' 
-                : 'bg-primary text-on-primary opacity-50 cursor-not-allowed'
-            }`}
-        >
-          {status === 'verifying' ? (
-            <><span className="material-symbols-outlined animate-spin" style={{ fontVariationSettings: "'FILL' 1" }}>sync</span> Verifying</>
-          ) : status === 'verified' ? (
-            <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span> Verified</>
-          ) : (
-            'Verify'
-          )}
-        </button>
-
-        <div className="mt-4 flex justify-between w-full font-label-caps text-label-caps text-on-surface-variant">
-          <span>Code expires in <span>{minutes}:{seconds}</span></span>
-          <button className="underline decoration-outline-variant hover:text-secondary transition-colors">Resend Code</button>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }

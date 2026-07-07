@@ -1,34 +1,56 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 
-// Mock Data
-const MOCK_BATCHES = [
-  { id: '#BX-8924-A', product: 'Lithium Ion Cells (Type C)', po: 'PO-2023-881', qty: '12,500', custodian: 'FreightLogistics Inc.', custodianInitials: 'FL', status: 'Payment Verified', statusColor: 'emerald', time: 'Cleared' },
-  { id: '#BX-8925-B', product: 'Titanium Casings (Machined)', po: 'PO-2023-882', qty: '4,200', custodian: 'NavSea Transport', custodianInitials: 'NA', status: 'Custody Confirmed', statusColor: 'blue', time: 'Due in 5 days' },
-  { id: '#BX-8921-A', product: 'Silicone Seals (Standard)', po: 'PO-2023-875', qty: '50,000', custodian: 'Warehouse 4 (Internal)', custodianInitials: 'WH', status: 'Settled', statusColor: 'surface', time: 'Closed' },
-  { id: '#BX-8890-C', product: 'Control Modules (V2)', po: 'PO-2023-840', qty: '850', custodian: 'AeroTech Assembly', custodianInitials: 'AT', status: 'Overdue', statusColor: 'red', time: '12 days overdue' },
-  { id: '#BX-8928-A', product: 'Optical Sensors (IR)', po: 'PO-2023-885', qty: '3,000', custodian: 'Global Logistics Hub', custodianInitials: 'GL', status: 'Flagged Hold', statusColor: 'amber', time: 'Pending Review' }
-];
-
-export default function BatchList() {
+export default function ManufacturerBatchesPage() {
+  const [batches, setBatches] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All Statuses');
 
-  // Filter Logic
+  useEffect(() => {
+    const fetchBatches = async () => {
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${API_URL}/api/batches`);
+        const data = await res.json();
+        
+        // Map backend data to frontend format
+        const formattedBatches = data.map((b: any) => ({
+          id: b.id.split('-')[0], // Shorten ID for display
+          rawId: b.id,
+          product: b.product_name,
+          po: `PO-${b.id.split('-')[1] || 'N/A'}`,
+          qty: b.quantity.toLocaleString(),
+          custodian: b.status === 'PENDING' ? 'Pending Acceptance' : 'FreightLogistics Inc.',
+          custodianInitials: b.status === 'PENDING' ? '--' : 'FL',
+          status: b.status === 'PAYMENT_VERIFIED' ? 'Payment Verified' : b.status === 'CUSTODY_CONFIRMED' ? 'Custody Confirmed' : 'Pending',
+          statusColor: b.status === 'PAYMENT_VERIFIED' ? 'emerald' : b.status === 'CUSTODY_CONFIRMED' ? 'blue' : 'amber',
+          time: new Date(b.created_at).toLocaleDateString(),
+          va: b.nomba_virtual_account_number
+        }));
+        setBatches(formattedBatches);
+      } catch (error) {
+        console.error('Failed to fetch batches', error);
+      }
+    };
+    fetchBatches();
+    // Poll every 3 seconds for hackathon demo magic
+    const interval = setInterval(fetchBatches, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   const filteredBatches = useMemo(() => {
-    return MOCK_BATCHES.filter(batch => {
+    return batches.filter(batch => {
       const matchesSearch = batch.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            batch.product.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            batch.po.toLowerCase().includes(searchQuery.toLowerCase());
+                            batch.product.toLowerCase().includes(searchQuery.toLowerCase());
       
       if (activeFilter === 'All Statuses') return matchesSearch;
       if (activeFilter === 'Payment Verified' && batch.status === 'Payment Verified') return matchesSearch;
       if (activeFilter === 'Custody Confirmed' && batch.status === 'Custody Confirmed') return matchesSearch;
-      if (activeFilter === 'Overdue' && batch.status === 'Overdue') return matchesSearch;
+      if (activeFilter === 'Pending' && batch.status === 'Pending') return matchesSearch;
       return false;
     });
-  }, [searchQuery, activeFilter]);
+  }, [searchQuery, activeFilter, batches]);
 
   const handleExport = () => {
     alert("Exporting report as CSV...");
@@ -73,7 +95,7 @@ export default function BatchList() {
           <div className="w-px h-8 bg-outline-variant hidden md:block mx-2"></div>
           {/* Filter Pills */}
           <div className="flex flex-wrap gap-2 w-full md:w-auto">
-            {['All Statuses', 'Payment Verified', 'Custody Confirmed', 'Overdue'].map(filter => (
+            {['All Statuses', 'Payment Verified', 'Custody Confirmed', 'Pending'].map(filter => (
               <button 
                 key={filter}
                 onClick={() => setActiveFilter(filter)}
@@ -111,7 +133,7 @@ export default function BatchList() {
                   <td className={`py-4 px-4 font-data-mono text-data-mono ${batch.statusColor === 'red' ? 'text-error' : 'text-primary'}`}>{batch.id}</td>
                   <td className="py-4 px-4">
                     <div className="font-body-sm text-body-sm font-medium text-on-surface">{batch.product}</div>
-                    <div className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">{batch.po}</div>
+                    <div className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">VA: {batch.va || 'Pending'}</div>
                   </td>
                   <td className="py-4 px-4 font-data-mono text-data-mono text-on-surface text-right">{batch.qty} units</td>
                   <td className="py-4 px-4">
@@ -183,7 +205,7 @@ export default function BatchList() {
         {/* Pagination */}
         <div className="px-gutter py-4 border-t border-outline-variant bg-surface flex items-center justify-between">
           <span className="font-body-sm text-body-sm text-on-surface-variant">
-            Showing {filteredBatches.length > 0 ? 1 : 0} to {filteredBatches.length} of {MOCK_BATCHES.length} batches
+            Showing {filteredBatches.length > 0 ? 1 : 0} to {filteredBatches.length} of {batches.length} batches
           </span>
           <div className="flex items-center gap-2">
             <button className="w-8 h-8 rounded border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-50" disabled>

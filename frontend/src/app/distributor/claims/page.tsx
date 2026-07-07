@@ -1,37 +1,37 @@
 'use client';
-import React, { useState } from 'react';
-
-const MOCK_INCOMING = [
-  {
-    id: 'BT-9948-2X',
-    sender: 'Global Logistics Inc.',
-    product: 'Industrial Motors',
-    qty: '450 Units',
-    terms: 'Net 30 Credit',
-    color: 'bg-secondary'
-  },
-  {
-    id: 'BT-4412-8Y',
-    sender: 'Apex Supply Co.',
-    product: 'Steel Brackets',
-    qty: '1,200 Units',
-    terms: 'Cash on Delivery',
-    color: 'bg-tertiary-fixed-dim'
-  },
-  {
-    id: 'BT-1109-1Z',
-    sender: 'NeoTech Parts',
-    product: 'Circuit Boards',
-    qty: '850 Units',
-    terms: 'Net 60 Credit',
-    color: 'bg-secondary'
-  }
-];
+import React, { useState, useEffect } from 'react';
 
 export default function IncomingClaims() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [incoming, setIncoming] = useState<any[]>([]);
 
-  const filteredBatches = MOCK_INCOMING.filter(batch => 
+  useEffect(() => {
+    const fetchIncoming = async () => {
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${API_URL}/api/allocations`);
+        if (res.ok) {
+          const data = await res.json();
+          // Filter for PENDING (incoming claims)
+          const pending = data.filter((a: any) => a.status === 'PENDING');
+          const mapped = pending.map((a: any) => ({
+            id: a.id,
+            sender: 'Manufacturer (ID: ' + a.from_participant_id + ')',
+            product: a.batch?.product_name || 'Allocated Product',
+            qty: a.quantity + ' Units',
+            terms: a.declared_terms === 'CREDIT' ? 'Net 30 Credit' : 'Cash on Delivery',
+            color: a.declared_terms === 'CREDIT' ? 'bg-secondary' : 'bg-tertiary-fixed-dim'
+          }));
+          setIncoming(mapped);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchIncoming();
+  }, []);
+
+  const filteredBatches = incoming.filter(batch => 
     batch.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
     batch.sender.toLowerCase().includes(searchQuery.toLowerCase()) ||
     batch.product.toLowerCase().includes(searchQuery.toLowerCase())

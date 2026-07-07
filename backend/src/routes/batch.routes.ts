@@ -8,15 +8,21 @@ const prisma = new PrismaClient();
 // Create new batch
 router.post('/', async (req, res) => {
   try {
-    const { organization_id, product_name, quantity, declared_terms, credit_term_days } = req.body;
+    const { organization_id, product_name, quantity, declared_terms, credit_term_days, unit_price } = req.body;
+
+    let org = await prisma.organization.findFirst();
+    if (!org) {
+      org = await prisma.organization.create({ data: { name: 'Default Organization' } });
+    }
 
     const batch = await prisma.batch.create({
       data: {
-        organization_id,
+        organization_id: org.id,
         product_name,
-        quantity,
-        declared_terms: declared_terms as Terms,
-        credit_term_days
+        quantity: parseInt(quantity, 10),
+        declared_terms: declared_terms.toUpperCase() as Terms,
+        credit_term_days: credit_term_days ? parseInt(credit_term_days, 10) : null,
+        unit_price: unit_price ? parseFloat(unit_price) : 0.0
       }
     });
 
@@ -34,6 +40,22 @@ router.post('/', async (req, res) => {
         nomba_virtual_account_number: vaResponse.accountNumber,
       }
     });
+
+    // Auto-allocate to default distributor for the demo flow
+    const distributorPhone = '+2348000000000';
+    const distributor = await prisma.participant.findUnique({ where: { phone_number: distributorPhone } });
+    if (distributor) {
+      await prisma.allocation.create({
+        data: {
+          batch_id: batch.id,
+          to_participant_id: distributor.id,
+          quantity: parseInt(quantity, 10),
+          declared_terms: declared_terms.toUpperCase() as Terms,
+          credit_term_days: credit_term_days ? parseInt(credit_term_days, 10) : null,
+          status: 'PENDING'
+        }
+      });
+    }
 
     res.json(updatedBatch);
   } catch (error) {

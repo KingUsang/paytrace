@@ -122,14 +122,14 @@ export default function SettingsPage() {
           </div>
           <div className="flex-grow flex flex-col justify-center">
             <div className="text-center mb-6">
-              <div className="font-display-lg text-display-lg text-primary">$50,000</div>
+              <div className="font-display-lg text-display-lg text-primary">₦50,000</div>
               <div className="text-body-sm font-body-sm text-on-surface-variant uppercase tracking-wider mt-1">Monthly Limit</div>
             </div>
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-xs font-data-mono text-data-mono text-on-surface-variant mb-1">
                   <span>Utilized</span>
-                  <span>$32,450 (65%)</span>
+                  <span>₦32,450 (65%)</span>
                 </div>
                 <div className="w-full bg-surface-container-high rounded-full h-2">
                   <div className="bg-secondary h-2 rounded-full" style={{ width: '65%' }}></div>
@@ -138,7 +138,7 @@ export default function SettingsPage() {
               <div className="pt-4 border-t border-outline-variant">
                 <label className="block text-body-sm font-body-sm text-on-surface-variant mb-1">Max Payout per Consumer</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2 text-on-surface-variant">$</span>
+                  <span className="absolute left-3 top-2 text-on-surface-variant">₦</span>
                   <input className="w-full bg-surface border border-outline-variant rounded pl-8 pr-4 py-2 font-data-mono text-data-mono focus:border-secondary focus:ring-1 focus:ring-secondary focus:outline-none transition-all" type="number" defaultValue="500" />
                 </div>
               </div>
