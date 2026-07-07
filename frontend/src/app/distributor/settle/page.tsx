@@ -53,7 +53,8 @@ export default function SettleOutstandingPage() {
     setIsSettling(true);
     
     try {
-      const response = await fetch('http://localhost:4000/api/settlements/provision', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${API_URL}/api/settlements/provision`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: selectedTotal, reference: 'BP-90821A' })
@@ -79,7 +80,8 @@ export default function SettleOutstandingPage() {
     
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`http://localhost:4000/api/settlements/${paymentBatchId}/status`);
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${API_URL}/api/settlements/${paymentBatchId}/status`);
         const data = await res.json();
         if (data.status === 'PAYMENT_VERIFIED') {
           setPaymentStatus('verified');
